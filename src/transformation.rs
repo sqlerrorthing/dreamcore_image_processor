@@ -1,5 +1,6 @@
 pub mod eyes;
 pub mod text;
+pub mod compression_artifact;
 
 use std::ops::Add;
 use image::DynamicImage;

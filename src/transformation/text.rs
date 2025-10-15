@@ -6,12 +6,12 @@ use imageproc::drawing::draw_text_mut;
 use rand::seq::IndexedRandom;
 use rand::{Rng, rng};
 
-pub struct AddTextTransformer<'a> {
+pub struct DreamcoreStyledTextTransfrorm<'a> {
     fonts: Vec<FontRef<'a>>,
     texts: Vec<&'static str>,
 }
 
-impl<'a> Default for AddTextTransformer<'a> {
+impl<'a> Default for DreamcoreStyledTextTransfrorm<'a> {
     fn default() -> Self {
         let mut fonts = Vec::new();
 
@@ -145,7 +145,7 @@ fn apply_repeated_text(
     }
 }
 
-impl ImageTransformation for AddTextTransformer<'_> {
+impl ImageTransformation for DreamcoreStyledTextTransfrorm<'_> {
     fn transform(&self, image: &mut DynamicImage) {
         let mut rng = rng();
         for _ in 0..rng.random_range(1..3) {
