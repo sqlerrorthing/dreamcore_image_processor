@@ -1,5 +1,5 @@
 use ab_glyph::{Font, Glyph, Point, ScaleFont, point};
-use image::imageops::FilterType;
+use image::imageops::{FilterType, resize};
 use image::{DynamicImage, GenericImageView};
 use rand::{Rng, rng};
 
@@ -71,4 +71,21 @@ pub fn crop_and_resize(img: &mut DynamicImage, final_size: u32) {
 
     let resized = image::imageops::resize(img, final_size, final_size, FilterType::Lanczos3);
     *img = DynamicImage::ImageRgba8(resized);
+}
+
+fn resize_to_background_image_scale(
+    img: &DynamicImage,
+    background: &DynamicImage,
+    scale: f32,
+) -> DynamicImage {
+    let target_width = (background.width() as f32 * scale) as u32;
+    let aspect_ratio = img.height() as f32 / img.width() as f32;
+    let target_height = (target_width as f32 * aspect_ratio) as u32;
+
+    DynamicImage::ImageRgba8(resize(
+        img,
+        target_width,
+        target_height,
+        FilterType::Lanczos3,
+    ))
 }

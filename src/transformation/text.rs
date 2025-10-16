@@ -3,15 +3,19 @@ use crate::{assets, layout_paragraph};
 use ab_glyph::{Font, FontRef, PxScale, ScaleFont, point};
 use image::{DynamicImage, Rgba};
 use imageproc::drawing::draw_text_mut;
-use rand::seq::IndexedRandom;
+use num_traits::Num;
+use rand::seq::{IndexedRandom, IteratorRandom};
 use rand::{Rng, rng};
+use std::ops::{AddAssign, SubAssign};
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
 
-pub struct DreamcoreStyledTextTransfrorm<'a> {
+pub struct DreamcoreStyledTextTransform<'a> {
     fonts: Vec<FontRef<'a>>,
     texts: Vec<&'static str>,
 }
 
-impl<'a> Default for DreamcoreStyledTextTransfrorm<'a> {
+impl<'a> Default for DreamcoreStyledTextTransform<'a> {
     fn default() -> Self {
         let mut fonts = Vec::new();
 
@@ -39,19 +43,20 @@ impl<'a> Default for DreamcoreStyledTextTransfrorm<'a> {
                 "i want to go back",
                 "he is watching!",
                 "It's time to go home",
-                "It's funny!"
+                "It's funny!",
             ],
         }
     }
 }
 
+#[derive(EnumIter)]
 enum RepeatedDirection {
     Top,
     TopLeft,
     TopRight,
     Bottom,
     BottomLeft,
-    BottomRight
+    BottomRight,
 }
 
 enum PlacementStyle {
@@ -59,7 +64,7 @@ enum PlacementStyle {
     Repeated {
         times: u32,
         direction: RepeatedDirection,
-    }
+    },
 }
 
 fn get_random_placement_style() -> PlacementStyle {
@@ -70,20 +75,21 @@ fn get_random_placement_style() -> PlacementStyle {
     } else {
         let times = rng.random_range(2..=4);
 
-        let direction = match rng.random_range(0..=5) {
-            0 => RepeatedDirection::Top,
-            1 => RepeatedDirection::TopLeft,
-            2 => RepeatedDirection::TopRight,
-            3 => RepeatedDirection::Bottom,
-            4 => RepeatedDirection::BottomLeft,
-            _ => RepeatedDirection::BottomRight,
+        let direction = unsafe {
+            RepeatedDirection::iter()
+                .choose(&mut rng)
+                .unwrap_unchecked()
         };
 
         PlacementStyle::Repeated { times, direction }
     }
 }
 
-fn random_text_params(font: &FontRef, text: &str, image: &DynamicImage) -> (PxScale, f32, f32, i32, i32, Rgba<u8>) {
+fn random_text_params(
+    font: &FontRef,
+    text: &str,
+    image: &DynamicImage,
+) -> (PxScale, f32, f32, i32, i32, Rgba<u8>) {
     let mut rng = rng();
     let scale = PxScale::from(rng.random_range(28.0..34.0));
     let scaled_font = font.into_scaled(scale);
@@ -111,7 +117,12 @@ fn random_text_params(font: &FontRef, text: &str, image: &DynamicImage) -> (PxSc
     let x = rng.random_range(0.0..max_x) as _;
     let y = rng.random_range(0.0..max_y) as _;
 
-    let color = Rgba([rng.random_range(200..255), rng.random_range(0..30), 0, rng.random_range(200..255)]);
+    let color = Rgba([
+        rng.random_range(200..255),
+        rng.random_range(0..30),
+        0,
+        rng.random_range(200..255),
+    ]);
 
     (scale, width, height, x, y, color)
 }
@@ -132,20 +143,42 @@ fn apply_repeated_text(
 
     for _ in 0..times {
         draw_text_mut(image, color, x, y, scale, font, text);
+        direction.apply_direction(10, height as i32, &mut x, &mut y);
+    }
+}
 
-        let step = 10;
-        match direction {
-            RepeatedDirection::Top => y -= height as i32,
-            RepeatedDirection::Bottom => y += height as i32,
-            RepeatedDirection::TopLeft => { y -= height as i32; x -= step; }
-            RepeatedDirection::TopRight => { y -= height as i32; x += step; }
-            RepeatedDirection::BottomLeft => { y += height as i32; x -= step; }
-            RepeatedDirection::BottomRight => { y += height as i32; x += step; }
+impl RepeatedDirection {
+    fn apply_direction<N: Num + AddAssign + SubAssign>(
+        &self,
+        step: N,
+        height: N,
+        x: &mut N,
+        y: &mut N,
+    ) {
+        match self {
+            RepeatedDirection::Top => *y -= height,
+            RepeatedDirection::Bottom => *y += height,
+            RepeatedDirection::TopLeft => {
+                *y -= height;
+                *x -= step;
+            }
+            RepeatedDirection::TopRight => {
+                *y -= height;
+                *x += step;
+            }
+            RepeatedDirection::BottomLeft => {
+                *y += height;
+                *x -= step;
+            }
+            RepeatedDirection::BottomRight => {
+                *y += height;
+                *x += step;
+            }
         }
     }
 }
 
-impl ImageTransformation for DreamcoreStyledTextTransfrorm<'_> {
+impl ImageTransformation for DreamcoreStyledTextTransform<'_> {
     fn transform(&self, image: &mut DynamicImage) {
         let mut rng = rng();
         for _ in 0..rng.random_range(1..3) {

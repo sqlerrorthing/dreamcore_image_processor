@@ -1,7 +1,7 @@
+use crate::transformation::ImageTransformation;
 use derive_new::new;
 use image::{DynamicImage, GenericImage, GenericImageView, Rgba};
-use rand::{rng, Rng};
-use crate::transformation::ImageTransformation;
+use rand::{Rng, rng};
 
 #[derive(Debug, new)]
 pub struct Distortion {
@@ -19,9 +19,12 @@ impl ImageTransformation for Distortion {
                 let channels = pixel.0;
 
                 let new_pixel = Rgba([
-                    (channels[0] as f32 + rng.random_range(-15.0..15.0) * self.intensity).clamp(0.0, 255.0) as u8,
-                    (channels[1] as f32 + rng.random_range(-15.0..15.0) * self.intensity).clamp(0.0, 255.0) as u8,
-                    (channels[2] as f32 + rng.random_range(-15.0..15.0) * self.intensity).clamp(0.0, 255.0) as u8,
+                    (channels[0] as f32 + rng.random_range(-15.0..15.0) * self.intensity)
+                        .clamp(0.0, 255.0) as u8,
+                    (channels[1] as f32 + rng.random_range(-15.0..15.0) * self.intensity)
+                        .clamp(0.0, 255.0) as u8,
+                    (channels[2] as f32 + rng.random_range(-15.0..15.0) * self.intensity)
+                        .clamp(0.0, 255.0) as u8,
                     channels[3],
                 ]);
 

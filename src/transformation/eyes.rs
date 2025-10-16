@@ -1,12 +1,12 @@
 use crate::assets;
 use crate::transformation::ImageTransformation;
-use image::imageops::{overlay, resize, FilterType};
+use image::imageops::{FilterType, overlay, resize};
 use image::{DynamicImage, Rgba};
 use imageproc::definitions::Image;
-use imageproc::geometric_transformations::{rotate_about_center, Interpolation};
+use imageproc::geometric_transformations::{Interpolation, rotate_about_center};
 use include_dir::Dir;
 use rand::seq::IndexedRandom;
-use rand::{rng, Rng};
+use rand::{Rng, rng};
 use std::ops::RangeInclusive;
 
 pub enum Eyeball {
@@ -61,11 +61,7 @@ fn place_simple_ball(ball: &DynamicImage, image: &mut DynamicImage) {
 fn place_ball_with_wing(wing: &DynamicImage, ball: &DynamicImage, image: &mut DynamicImage) {
     let mut rng = rng();
 
-    let scaled_wing = scale_and_rotate(
-        wing,
-        rng.random_range(0.9..=1.2),
-        None,
-    );
+    let scaled_wing = scale_and_rotate(wing, rng.random_range(0.9..=1.2), None);
 
     let max_x = image.width().saturating_sub(scaled_wing.width());
     let max_y = image.height().saturating_sub(scaled_wing.height());
@@ -86,24 +82,6 @@ fn place_ball_with_wing(wing: &DynamicImage, ball: &DynamicImage, image: &mut Dy
     overlay(image, &rotated_ball, center_x as _, center_y as _);
 }
 
-
-fn resize_to_background_image_scale(
-    img: &DynamicImage,
-    background: &DynamicImage,
-    scale: f32,
-) -> DynamicImage {
-    let target_width = (background.width() as f32 * scale) as u32;
-    let aspect_ratio = img.height() as f32 / img.width() as f32;
-    let target_height = (target_width as f32 * aspect_ratio) as u32;
-
-    DynamicImage::ImageRgba8(resize(
-        img,
-        target_width,
-        target_height,
-        FilterType::Lanczos3,
-    ))
-}
-
 impl ImageTransformation for Eyeballs {
     fn transform(&self, image: &mut DynamicImage) {
         let mut rng = rng();
@@ -114,13 +92,13 @@ impl ImageTransformation for Eyeballs {
 
         for _ in 0..rng.random_range(self.count.clone()) {
             let ball = self.balls.choose(&mut rng).unwrap();
-            let ball = resize_to_background_image_scale(ball, image, 0.2);
+            let ball = crate::resize_to_background_image_scale(ball, image, 0.2);
 
             match self.r#type {
                 Eyeball::SimpleEye => place_simple_ball(&ball, image),
                 Eyeball::EyeWithWings => {
                     let wing = self.wings.as_ref().unwrap().choose(&mut rng).unwrap();
-                    let wing = resize_to_background_image_scale(wing, image, 0.3);
+                    let wing = crate::resize_to_background_image_scale(wing, image, 0.3);
                     place_ball_with_wing(&wing, &ball, image)
                 }
             }
