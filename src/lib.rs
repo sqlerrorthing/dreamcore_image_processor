@@ -4,6 +4,7 @@ use image::{DynamicImage, GenericImageView};
 use rand::{Rng, rng};
 
 pub mod assets;
+pub mod provider;
 pub mod transformation;
 
 /// Took from https://github.com/alexheretic/ab-glyph/blob/main/dev/src/layout.rs
