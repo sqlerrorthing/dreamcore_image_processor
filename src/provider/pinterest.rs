@@ -73,7 +73,7 @@ pub struct PinterestProvider {
     client: Client,
 }
 
-async fn fetch_images(query: &str, client: Client) -> Result<Vec<String>, reqwest::Error> {
+async fn fetch_images(query: &str, client: Client, out: &mut Vec<String>) -> Result<(), reqwest::Error> {
     let source_url = format!("/search/pins/?q={query}");
     let source_url = urlencoding::encode(&source_url);
 
@@ -104,9 +104,7 @@ async fn fetch_images(query: &str, client: Client) -> Result<Vec<String>, reqwes
                 "filters": null,
                 "rs": "direct_navigation",
                 "redux_normalize_feed": true,
-                "bookmarks": [
-                    "Y2JVSG81V2sxcmNHRlpWM1J5VFVaU1ZsWllaR3hpVmtreVZsZHpOVll4U2xoa2VrSlhVak5TVkZaSE1WZGphekZXVm14V1dGSXhTbEJYVm1RMFVtMVJlRlZzYUdwU1ZYQlBXVlJPVTJWV1pISlhhM1JYVm10V05sVldVbE5XVjBwSVZXeE9WVll6YUROV01GcFBaRWRPUms5V1RsTldia0l5Vm10a01GVXlSWGxUYTFwUVZtMW9WbGxzYUc5WlZuQllaRVYwYWsxWFVqQlpNRlV4VkRGYWRHVklhRmROVjJoNlZrUkdTMUpzVG5WVmJGWnBZbXRLVEZaR1dsWmxSbHBYVm14c2FWSXdXbGhVVmxaYVRVWlplR0ZJWkdoaVZrWXpWR3hTWVZaWFNsbFZhemxWVmpOT05GUnNXbE5rUjA1SVVtMW9UbEpHV2xkV2JYaFRWVEZTY2sxWVNtcFRSVnBXVm1wT1EyVnNiSEpXVkVacVZteGFWbFp0Y3pGaFZscFhZMGhrVjAxV1NsQlVhMXBTWlVaT2MxcEhSbE5TTWswMVdtdGFWMU5YU2paVmJYaFhWMGRvUmxkc1ZsZGhNV1J6VjFod2FGSkdjRmxaYTJSdVpXeFNjbFpVUmxkV2F6VmFXVlZWTlZVeFNsVlNWRXBYVW14YVZGWkhNVkprTURGWlVteGFWMUpWY0ZCWFZtUXdVbTFXVjFSWWJHdFNNMUpYV1d0YVMxSldhM2RWYlRsVlRWVndSMWt3YUU5V1ZscEdZMFU1VlZac1ZqUldNRnBQVmxaT2RGSnRhR2xTYkZZelZtdGtNRlV5VG5SV2ExcFBWbTFvVjFsc2FHOVZSbFp5Vm10YVRsWnNSak5YYTFaaFZHeGFWVkpyYkZkTmFrWXpWMVphV21WR1RuVlJiR2hwVWpGS1VGZHNWbUZrTVVwWFZHeHNZVkp1UW5CV2JHUXpUVlphUjJGSVpHcE5hM0JJV1d0b1UxZEhTbFZTYkVKV1lURmFNMWt3V210amJGWnpVMnMxYVZORlNscFdhMk4zWlVaa2NrMVlTbGRoYkZwWlZqQm9RMVF4Y0ZkV1dHaHFWbXMxV2xsVlZURlVhekI1WVVaR1YxWXphR2haVkVFMVVXeENWVTFVYUZCU1JsWTFWRlpTVW1Wck1UWlJXSEJPVWtWcmQxUnJVa3BrTURWd1kwVm9WbFpZWkhoYWExSnZZVEZyZVZSdE1VNVNNVVl6VjIxd2MyRldjSFJTYlhoUFZqRmFjVmRYY0Vwa01EbFZWMVJLVGxKRlJYbFhiVEZTWkRBMGVWTnRlRTVTUmxVd1ZGaHdjbVZyTkhsU1ZFcE9Va1pLY0ZkdE1WcGxSVFZGVjIxd1RtRnJXbkJVVjNCR1RVVTVXRlZ0ZUU5bGExVjNWMWh3VTA5R1VuSldiR2h0VVZRd09XWkVaekZOYWtVd1RYcE5kMDE2UVhsT1JGRjVUVVJaY1ZJeFJrMUxibmMxVDFkRmVGbFhTWGRaVkZrelRsUmpkMDVFV1ROT01sVTBUMGRKZUU1VVdUQk9hazVxVG5wT2FGcHFRWGxQVkdzeFdrUkJNVTVFVm0xTk1rMTNXbFJWZWxwRVl6VlBSR2h0VFdwck5WcHRTVEZhYWtGNVprVTFSbFl6ZHowPXxVSG81VDJJeU5XeG1SR2N4VFdwRk1FMTZUWGROZWtGNVRrUlJlVTFFV1hGU01VWk5TMjUzZVU1cVNYbFpla3ByVGxSQ2JWbFVhM2xPVjBac1RVUkZORTE2U1RGWmJWWm9Ua2ROZVU1RVNUTk9iVkpwVFdwV2FWbHRTVE5OTWtsNFRqSkZNRTlFYXpGYVJGRXpXWHBuTkZsNlRtcGFSRVYzVGxkRk1HWkZOVVpXTTNjOXxOb25lfDg1MjE0MzMwMzAyNDQyMDYqR1FMKnwxYmU5ZTg0MGQxOTJkMGYyMDI4MzY1Y2VhOTg0YTlhZTJiYWViMjMyMjIwYjhlNzc1NDU0MmYxOGZiZWJjODQ3fE5FV3w="
-                ]
+                "bookmarks": [""]
             },
         "context": {}
     });
@@ -126,19 +124,20 @@ async fn fetch_images(query: &str, client: Client) -> Result<Vec<String>, reqwes
         .json::<Value>()
         .await?;
 
-    Ok(extract_image_urls(res))
+    extract_image_urls(res, out);
+    Ok(())
 }
 
-fn extract_image_urls(json: Value) -> Vec<String> {
-    json.pointer("/resource_response/data/results")
-        .and_then(|v| v.as_array())
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|item| item.pointer("/images/orig/url").and_then(|v| v.as_str()))
-                .map(|s| s.to_string())
-                .collect()
-        })
-        .unwrap_or_default()
+
+#[inline(always)]
+fn extract_image_urls(json: Value, out: &mut Vec<String>) {
+    if let Some(arr) = json.pointer("/resource_response/data/results").and_then(|v| v.as_array()) {
+        for item in arr {
+            if let Some(url) = item.pointer("/images/orig/url").and_then(|v| v.as_str()) {
+                out.push(url.to_string());
+            }
+        }
+    }
 }
 
 async fn download_image(client: Client, url: String) -> Result<DynamicImage, FetchBackgroundError> {
@@ -154,13 +153,11 @@ impl BackgroundProvider for PinterestProvider {
         if pool.is_empty() {
             info!("Images pool empty, fetching new batch...");
 
-            let images = fetch_images(self.query, self.client.clone()).await?;
+            fetch_images(self.query, self.client.clone(), &mut pool).await?;
 
-            if images.is_empty() {
+            if pool.is_empty() {
                 return Err(FetchBackgroundError::NoImages);
             }
-
-            pool.extend(images);
         }
 
         let image_link = pool.pop().unwrap();

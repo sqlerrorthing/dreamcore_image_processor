@@ -28,7 +28,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let now = Instant::now();
 
-    let tasks = (0..30).map(|i| {
+    let tasks = (0..300).map(|i| {
         let pipeline = pipeline.clone();
         let provider = provider.clone();
 
