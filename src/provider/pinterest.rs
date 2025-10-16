@@ -7,6 +7,7 @@ use reqwest::header::HeaderMap;
 use reqwest::{header, Client};
 use serde_json::{json, Value};
 use std::collections::HashMap;
+use serde::{Deserialize, Deserializer};
 use tokio::sync::Mutex;
 
 lazy_static! {
@@ -66,17 +67,46 @@ lazy_static! {
 
 #[derive(Debug, new)]
 pub struct PinterestProvider {
-    query: &'static str,
+    #[new(into)]
+    query: String,
     #[new(default)]
     image_pool: Mutex<ImagePool>,
     #[new(default)]
     client: Client,
 }
 
-#[derive(Debug, Default)]
+impl PinterestProvider {
+    pub fn with_bookmark(query: impl Into<String>, bookmark: Option<String>) -> Self {
+        Self {
+            query: query.into(),
+            image_pool: Mutex::new(ImagePool::new(bookmark)),
+            client: Client::new()
+        }
+    }
+}
+
+#[derive(Debug, Default, new)]
 struct ImagePool {
+    #[new(default)]
     images: Vec<String>,
     bookmark: Option<String>,
+}
+
+impl<'de> Deserialize<'de> for PinterestProvider {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct Helper {
+            query: String,
+            bookmark: Option<String>,
+        }
+
+        let raw = Helper::deserialize(deserializer)?;
+
+        Ok(PinterestProvider::with_bookmark(raw.query, raw.bookmark))
+    }
 }
 
 impl ImagePool {
@@ -133,6 +163,7 @@ impl ImagePool {
         extract_image_urls(&res, &mut self.images);
 
         if let Some(bm) = extract_bookmark(&res) {
+            info!("Resource bookmark: {bm}");
             self.bookmark.replace(bm);
         }
 
@@ -174,7 +205,7 @@ impl BackgroundProvider for PinterestProvider {
         if pool.images.is_empty() {
             info!("Image pool is empty, fetching new batch...");
 
-            pool.populate(self.query, self.client.clone()).await?;
+            pool.populate(&self.query, self.client.clone()).await?;
 
             if pool.images.is_empty() {
                 return Err(FetchBackgroundError::NoImages);
