@@ -1,5 +1,5 @@
 use dreamcore_image_processor::crop_and_resize;
-use dreamcore_image_processor::transformation::compression_artifact::Distortion;
+use dreamcore_image_processor::transformation::distortion::Distortion;
 use dreamcore_image_processor::transformation::eyes::{Eyeball, Eyeballs};
 use dreamcore_image_processor::transformation::text::DreamcoreStyledTextTransform;
 use dreamcore_image_processor::transformation::{ImageTransformation, Pipeline};

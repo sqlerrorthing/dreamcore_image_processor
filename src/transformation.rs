@@ -1,4 +1,4 @@
-pub mod compression_artifact;
+pub mod distortion;
 pub mod eyes;
 pub mod text;
 
@@ -24,18 +24,21 @@ pub struct Pipeline {
     steps: Vec<Box<dyn ImageTransformation>>,
 }
 
-impl Pipeline {
-    pub fn add_ref(mut self, step: Box<dyn ImageTransformation>) -> Self {
-        self.steps.push(step);
+impl Add<Box<dyn ImageTransformation>> for Pipeline {
+    type Output = Self;
+
+    fn add(mut self, rhs: Box<dyn ImageTransformation>) -> Self::Output {
+        self.steps.push(rhs);
         self
     }
 }
 
 impl<T: ImageTransformation + 'static> Add<T> for Pipeline {
-    type Output = Pipeline;
+    type Output = Self;
 
-    fn add(self, rhs: T) -> Self::Output {
-        self.add_ref(Box::new(rhs))
+    fn add(mut self, rhs: T) -> Self::Output {
+        self.steps.push(Box::new(rhs));
+        self
     }
 }
 
