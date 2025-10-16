@@ -76,7 +76,7 @@ pub struct PinterestProvider {
 #[derive(Debug, Default)]
 struct ImagePool {
     images: Vec<String>,
-    bookmark: Option<String>
+    bookmark: Option<String>,
 }
 
 impl ImagePool {
@@ -120,7 +120,6 @@ impl ImagePool {
         form.insert("source_url", source_url);
         form.insert("data", data.to_string().into());
 
-
         let res = client
             .post("https://www.pinterest.com/resource/BaseSearchResource/get/")
             .headers(HEADERS.clone())
@@ -141,10 +140,12 @@ impl ImagePool {
     }
 }
 
-
 #[inline(always)]
 fn extract_image_urls(json: &Value, out: &mut Vec<String>) {
-    if let Some(arr) = json.pointer("/resource_response/data/results").and_then(Value::as_array) {
+    if let Some(arr) = json
+        .pointer("/resource_response/data/results")
+        .and_then(Value::as_array)
+    {
         for item in arr {
             if let Some(url) = item.pointer("/images/orig/url").and_then(Value::as_str) {
                 out.push(url.to_string());
