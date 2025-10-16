@@ -4,7 +4,7 @@ use image::DynamicImage;
 use lazy_static::lazy_static;
 use log::info;
 use reqwest::header::HeaderMap;
-use reqwest::{header, Client, Url};
+use reqwest::{header, Client};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use tokio::sync::Mutex;
@@ -141,7 +141,9 @@ fn extract_image_urls(json: Value) -> Vec<String> {
         .unwrap_or_default()
 }
 
-async fn download_image(client: Client, url: String) -> Result<DynamicImage, FetchBackgroundError> {
+async fn download_image(client: Client, url: String, rest: usize) -> Result<DynamicImage, FetchBackgroundError> {
+    info!("Downloading image {url}, {rest} images rest in pool");
+
     let bytes = client.get(&url).send().await?.bytes().await?;
     let img = image::load_from_memory(&bytes)?;
 
@@ -150,29 +152,25 @@ async fn download_image(client: Client, url: String) -> Result<DynamicImage, Fet
 
 impl BackgroundProvider for PinterestProvider {
     async fn fetch_background(&self) -> Result<DynamicImage, FetchBackgroundError> {
-        if let (Some(image_link), rest) = {
-            let mut pool = self.image_pool.lock().await;
-            (pool.pop(), pool.len())
-        } {
-            info!("Downloading image {image_link}, {rest} images rest in pool");
-            return download_image(self.client.clone(), image_link).await;
-        }
-
-        info!("Images pool empty, fetching new batch...");
         let mut pool = self.image_pool.lock().await;
-        let mut images = fetch_images(self.query, self.client.clone()).await?;
 
-        if images.is_empty() {
-            return Err(FetchBackgroundError::NoImages);
+        if pool.is_empty() {
+            info!("Images pool empty, fetching new batch...");
+
+            let images = fetch_images(self.query, self.client.clone()).await?;
+
+            if images.is_empty() {
+                return Err(FetchBackgroundError::NoImages);
+            }
+
+            pool.extend(images);
         }
 
-        info!("Fetched {} images", images.len());
+        let image_link = pool.pop().unwrap();
+        let rest = pool.len();
 
-        let image_link = unsafe { images.pop().unwrap_unchecked() };
-
-        pool.extend(images);
         drop(pool);
 
-        download_image(self.client.clone(), image_link).await
+        download_image(self.client.clone(), image_link, rest).await
     }
 }
