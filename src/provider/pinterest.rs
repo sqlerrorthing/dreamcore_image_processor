@@ -141,12 +141,9 @@ fn extract_image_urls(json: Value) -> Vec<String> {
         .unwrap_or_default()
 }
 
-async fn download_image(client: Client, url: String, rest: usize) -> Result<DynamicImage, FetchBackgroundError> {
-    info!("Downloading image {url}, {rest} images rest in pool");
-
+async fn download_image(client: Client, url: String) -> Result<DynamicImage, FetchBackgroundError> {
     let bytes = client.get(&url).send().await?.bytes().await?;
     let img = image::load_from_memory(&bytes)?;
-
     Ok(img)
 }
 
@@ -171,6 +168,7 @@ impl BackgroundProvider for PinterestProvider {
 
         drop(pool);
 
-        download_image(self.client.clone(), image_link, rest).await
+        info!("Downloading image {image_link}, {rest} images rest in pool");
+        download_image(self.client.clone(), image_link).await
     }
 }
