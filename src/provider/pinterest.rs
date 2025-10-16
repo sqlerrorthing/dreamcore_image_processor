@@ -68,76 +68,96 @@ lazy_static! {
 pub struct PinterestProvider {
     query: &'static str,
     #[new(default)]
-    image_pool: Mutex<Vec<String>>,
+    image_pool: Mutex<ImagePool>,
     #[new(default)]
     client: Client,
 }
 
-async fn fetch_images(query: &str, client: Client, out: &mut Vec<String>) -> Result<(), reqwest::Error> {
-    let source_url = format!("/search/pins/?q={query}");
-    let source_url = urlencoding::encode(&source_url);
+#[derive(Debug, Default)]
+struct ImagePool {
+    images: Vec<String>,
+    bookmark: Option<String>
+}
 
-    let data = json!({
-        "options": {
-                "query": query,
-                "scope": "pins",
-                "appliedProductFilters": "---",
-                "domains": null,
-                "user": null,
-                "seoDrawerEnabled": false,
-                "applied_unified_filters": null,
-                "auto_correction_disabled": false,
-                "journey_depth": null,
-                "source_id": null,
-                "source_module_id": null,
-                "source_url": source_url,
-                "selected_one_bar_modules": null,
-                "query_pin_sigs": null,
-                "page_size": null,
-                "price_max": null,
-                "price_min": null,
-                "request_params": null,
-                "top_pin_ids": null,
-                "article": null,
-                "corpus": null,
-                "customized_rerank_type": null,
-                "filters": null,
-                "rs": "direct_navigation",
-                "redux_normalize_feed": true,
-                "bookmarks": [""]
-            },
-        "context": {}
-    });
+impl ImagePool {
+    async fn populate(&mut self, query: &str, client: Client) -> Result<(), reqwest::Error> {
+        let source_url = format!("/search/pins/?q={query}");
+        let source_url = urlencoding::encode(&source_url);
 
-    let mut form = HashMap::new();
-    form.insert("source_url", source_url);
-    form.insert("data", data.to_string().into());
+        let data = json!({
+            "options": {
+                    "query": query,
+                    "scope": "pins",
+                    "appliedProductFilters": "---",
+                    "domains": null,
+                    "user": null,
+                    "seoDrawerEnabled": false,
+                    "applied_unified_filters": null,
+                    "auto_correction_disabled": false,
+                    "journey_depth": null,
+                    "source_id": null,
+                    "source_module_id": null,
+                    "source_url": source_url,
+                    "selected_one_bar_modules": null,
+                    "query_pin_sigs": null,
+                    "page_size": null,
+                    "price_max": null,
+                    "price_min": null,
+                    "request_params": null,
+                    "top_pin_ids": null,
+                    "article": null,
+                    "corpus": null,
+                    "customized_rerank_type": null,
+                    "filters": null,
+                    "rs": "direct_navigation",
+                    "redux_normalize_feed": true,
+                    "bookmarks": self.bookmark.iter().cloned().collect::<Vec<_>>()
+                },
+            "context": {}
+        });
+
+        let mut form = HashMap::new();
+        form.insert("source_url", source_url);
+        form.insert("data", data.to_string().into());
 
 
-    let res = client
-        .post("https://www.pinterest.com/resource/BaseSearchResource/get/")
-        .headers(HEADERS.clone())
-        .form(&form)
-        .send()
-        .await?
-        .error_for_status()?
-        .json::<Value>()
-        .await?;
+        let res = client
+            .post("https://www.pinterest.com/resource/BaseSearchResource/get/")
+            .headers(HEADERS.clone())
+            .form(&form)
+            .send()
+            .await?
+            .error_for_status()?
+            .json::<Value>()
+            .await?;
 
-    extract_image_urls(res, out);
-    Ok(())
+        extract_image_urls(&res, &mut self.images);
+
+        if let Some(bm) = extract_bookmark(&res) {
+            self.bookmark.replace(bm);
+        }
+
+        Ok(())
+    }
 }
 
 
 #[inline(always)]
-fn extract_image_urls(json: Value, out: &mut Vec<String>) {
-    if let Some(arr) = json.pointer("/resource_response/data/results").and_then(|v| v.as_array()) {
+fn extract_image_urls(json: &Value, out: &mut Vec<String>) {
+    if let Some(arr) = json.pointer("/resource_response/data/results").and_then(Value::as_array) {
         for item in arr {
-            if let Some(url) = item.pointer("/images/orig/url").and_then(|v| v.as_str()) {
+            if let Some(url) = item.pointer("/images/orig/url").and_then(Value::as_str) {
                 out.push(url.to_string());
             }
         }
     }
+}
+
+#[inline(always)]
+fn extract_bookmark(json: &Value) -> Option<String> {
+    json.pointer("/resource_response/bookmark")
+        .and_then(Value::as_str)
+        .map(str::to_owned)
 }
 
 async fn download_image(client: Client, url: String) -> Result<DynamicImage, FetchBackgroundError> {
@@ -150,18 +170,18 @@ impl BackgroundProvider for PinterestProvider {
     async fn fetch_background(&self) -> Result<DynamicImage, FetchBackgroundError> {
         let mut pool = self.image_pool.lock().await;
 
-        if pool.is_empty() {
-            info!("Images pool empty, fetching new batch...");
+        if pool.images.is_empty() {
+            info!("Image pool is empty, fetching new batch...");
 
-            fetch_images(self.query, self.client.clone(), &mut pool).await?;
+            pool.populate(self.query, self.client.clone()).await?;
 
-            if pool.is_empty() {
+            if pool.images.is_empty() {
                 return Err(FetchBackgroundError::NoImages);
             }
         }
 
-        let image_link = pool.pop().unwrap();
-        let rest = pool.len();
+        let image_link = pool.images.pop().unwrap();
+        let rest = pool.images.len();
 
         drop(pool);
 

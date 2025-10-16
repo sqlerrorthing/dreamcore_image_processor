@@ -36,7 +36,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut img = provider.fetch_background().await.unwrap();
             
             let (w, h) = img.dimensions();
-            info!("Resizing image {i} from {w}{h} to 512x512");
+            info!("Resizing image {i} from {w}x{h} to 512x512");
             
             crop_and_resize(&mut img, 512);
             
