@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use crate::assets;
 use crate::transformation::ImageTransformation;
 use image::imageops::{FilterType, overlay, resize};
@@ -8,7 +9,10 @@ use include_dir::Dir;
 use rand::seq::IndexedRandom;
 use rand::{Rng, rng};
 use std::ops::RangeInclusive;
+use log::info;
+use strum_macros::Display;
 
+#[derive(Display)]
 pub enum Eyeball {
     SimpleEye,
     EyeWithWings,
@@ -82,30 +86,6 @@ fn place_ball_with_wing(wing: &DynamicImage, ball: &DynamicImage, image: &mut Dy
     overlay(image, &rotated_ball, center_x as _, center_y as _);
 }
 
-impl ImageTransformation for Eyeballs {
-    fn transform(&self, image: &mut DynamicImage) {
-        let mut rng = rng();
-
-        if self.count.is_empty() {
-            return;
-        }
-
-        for _ in 0..rng.random_range(self.count.clone()) {
-            let ball = self.balls.choose(&mut rng).unwrap();
-            let ball = crate::resize_to_background_image_scale(ball, image, 0.2);
-
-            match self.r#type {
-                Eyeball::SimpleEye => place_simple_ball(&ball, image),
-                Eyeball::EyeWithWings => {
-                    let wing = self.wings.as_ref().unwrap().choose(&mut rng).unwrap();
-                    let wing = crate::resize_to_background_image_scale(wing, image, 0.3);
-                    place_ball_with_wing(&wing, &ball, image)
-                }
-            }
-        }
-    }
-}
-
 impl Eyeballs {
     pub fn new(r#type: Eyeball, count: RangeInclusive<u32>) -> Self {
         let balls: Vec<DynamicImage> = load_images(assets::EYEBALLS);
@@ -127,6 +107,38 @@ impl Eyeballs {
             count,
             balls,
             wings,
+        }
+    }
+}
+
+impl Display for Eyeballs {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Eyeballs(t:{})", self.r#type)
+    }
+}
+
+impl ImageTransformation for Eyeballs {
+    fn transform(&self, image: &mut DynamicImage) {
+        let mut rng = rng();
+
+        if self.count.is_empty() {
+            return;
+        }
+
+        for _ in 0..rng.random_range(self.count.clone()) {
+            let ball = self.balls.choose(&mut rng).unwrap();
+            let ball = crate::resize_to_background_image_scale(ball, image, 0.2);
+
+            info!("Applying {} for image {image:p}", self.r#type);
+
+            match self.r#type {
+                Eyeball::SimpleEye => place_simple_ball(&ball, image),
+                Eyeball::EyeWithWings => {
+                    let wing = self.wings.as_ref().unwrap().choose(&mut rng).unwrap();
+                    let wing = crate::resize_to_background_image_scale(wing, image, 0.3);
+                    place_ball_with_wing(&wing, &ball, image)
+                }
+            }
         }
     }
 }

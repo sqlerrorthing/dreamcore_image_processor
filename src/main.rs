@@ -21,7 +21,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let pipeline = Pipeline::default()
         + DreamcoreStyledTextTransform::default()
-        + Distortion::new(2.0)
+        + Distortion::new(1.8..2.0)
         + Eyeballs::new(Eyeball::SimpleEye, 1..=3)
         + Eyeballs::new(Eyeball::EyeWithWings, 0..=2);
 
@@ -29,7 +29,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let now = Instant::now();
 
-    let tasks = (0..1024).map(|i| {
+    let tasks = (0..33).map(|i| {
         let pipeline = pipeline.clone();
         let provider = provider.clone();
 

@@ -2,8 +2,10 @@ pub mod distortion;
 pub mod eyes;
 pub mod text;
 
+use std::fmt::{Display, Formatter};
 use image::DynamicImage;
 use std::ops::Add;
+use log::info;
 
 /// # Requirements
 ///
@@ -15,7 +17,7 @@ use std::ops::Add;
 /// # Parameters
 ///
 /// - `image`: A mutable reference to a [`DynamicImage`] that will be transformed.
-pub trait ImageTransformation: Send + Sync {
+pub trait ImageTransformation: Send + Sync + Display {
     fn transform(&self, image: &mut DynamicImage);
 }
 
@@ -42,8 +44,22 @@ impl<T: ImageTransformation + 'static> Add<T> for Pipeline {
     }
 }
 
+impl Display for Pipeline {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Pipeline")
+    }
+}
+
 impl ImageTransformation for Pipeline {
     fn transform(&self, image: &mut DynamicImage) {
+        let chain = self.steps
+            .iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>()
+            .join(" -> ");
+
+        info!("Running transformations for image {image:p}: {chain}",);
+
         for step in &self.steps {
             step.transform(image)
         }

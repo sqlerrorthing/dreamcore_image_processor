@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use crate::transformation::ImageTransformation;
 use crate::{assets, layout_paragraph};
 use ab_glyph::{Font, FontRef, PxScale, ScaleFont, point};
@@ -7,8 +8,9 @@ use num_traits::Num;
 use rand::seq::{IndexedRandom, IteratorRandom};
 use rand::{Rng, rng};
 use std::ops::{AddAssign, SubAssign};
+use log::info;
 use strum::IntoEnumIterator;
-use strum_macros::EnumIter;
+use strum_macros::{Display, EnumIter};
 
 pub struct DreamcoreStyledTextTransform<'a> {
     fonts: Vec<FontRef<'a>>,
@@ -49,7 +51,7 @@ impl<'a> Default for DreamcoreStyledTextTransform<'a> {
     }
 }
 
-#[derive(EnumIter)]
+#[derive(EnumIter, Display)]
 enum RepeatedDirection {
     Top,
     TopLeft,
@@ -73,7 +75,7 @@ fn get_random_placement_style() -> PlacementStyle {
     if rng.random_bool(0.8) {
         PlacementStyle::Single
     } else {
-        let times = rng.random_range(2..=4);
+        let times = rng.random_range(2..=10);
 
         let direction = unsafe {
             RepeatedDirection::iter()
@@ -139,11 +141,14 @@ fn apply_repeated_text(
     times: u32,
     direction: &RepeatedDirection,
 ) {
+    let mut rng = rng();
     let (scale, _, height, mut x, mut y, color) = random_text_params(font, text, image);
 
     for _ in 0..times {
+        let step = rng.random_range(7..14);
+        
         draw_text_mut(image, color, x, y, scale, font, text);
-        direction.apply_direction(10, height as i32, &mut x, &mut y);
+        direction.apply_direction(step, height as i32, &mut x, &mut y);
     }
 }
 
@@ -178,18 +183,27 @@ impl RepeatedDirection {
     }
 }
 
+impl Display for DreamcoreStyledTextTransform<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Text")
+    }
+}
+
 impl ImageTransformation for DreamcoreStyledTextTransform<'_> {
     fn transform(&self, image: &mut DynamicImage) {
         let mut rng = rng();
+        
         for _ in 0..rng.random_range(1..3) {
             let font = unsafe { self.fonts.choose(&mut rng).unwrap_unchecked() };
             let text = unsafe { self.texts.choose(&mut rng).unwrap_unchecked() };
 
             match get_random_placement_style() {
                 PlacementStyle::Single => {
+                    info!("Appending single text for image {image:p}");
                     draw_random_text(font, text, image);
                 }
                 PlacementStyle::Repeated { times, direction } => {
+                    info!("Appending repeated text for image {image:p} with {times} times and {direction} direction");
                     apply_repeated_text(font, text, image, times, &direction);
                 }
             }
